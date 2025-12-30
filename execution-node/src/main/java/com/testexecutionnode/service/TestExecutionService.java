@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -46,6 +47,9 @@ public class TestExecutionService {
     @Autowired
     private TempFileCleanupScheduler tempFileCleanupScheduler;
 
+    @Value("${project.root.dir}")
+    private String projectRootDir;
+
     // 构建执行命令
     private String buildCommand(String scriptType, String filePath) {
         switch (scriptType.toLowerCase()) {
@@ -68,32 +72,22 @@ public class TestExecutionService {
 
     // 下载文件并保存到临时目录
     private Path downloadScriptFile(Long planId, Long scriptId, String scriptName, String scriptType, String fileUrl) throws IOException {
-        // 获取当前日期，格式为yyyyMMdd
         String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));        
         
-        // 获取项目根目录（当在execution-node目录运行时，父目录就是项目根目录）
-        Path projectRoot = Paths.get(System.getProperty("user.dir")).getParent();
-        if (projectRoot == null) {
-            // 如果获取不到父目录，使用当前目录
-            projectRoot = Paths.get(System.getProperty("user.dir"));
-        }
+        Path projectRoot = Paths.get(projectRootDir);
         
-        // 创建临时文件路径：项目根路径的scripts/tmp/yyyyMMdd/planId/scriptId.py
         Path tempDir = projectRoot.resolve(nodeConfig.getTempScriptDirectory()).resolve(dateStr);
         if (planId != null) {
             tempDir = tempDir.resolve(String.valueOf(planId));
         }
-        Files.createDirectories(tempDir); // 确保目录存在        
+        Files.createDirectories(tempDir);        
         
-        // 构建临时文件路径：脚本id.py
         String fileName = scriptId + ".py";
         Path tempFilePath = tempDir.resolve(fileName);        
         
-        // 构建完整的下载URL
         String platformUrl = nodeConfig.getPlatformServerUrl();
         String downloadUrl = platformUrl + (platformUrl.endsWith("/") ? "" : "/") + "api/scripts/download?filePath=" + fileUrl;
         
-        // 从下载URL下载文件
         URL url = new URL(downloadUrl);
         try (InputStream in = url.openStream()) {
             Files.copy(in, tempFilePath, StandardCopyOption.REPLACE_EXISTING);        
@@ -525,28 +519,19 @@ public class TestExecutionService {
      * @throws IOException IO异常
      */
     public Path saveScriptToTempFile(String scriptContent, String scriptType, Long scriptId, Long planId) throws IOException {
-        // 获取当前日期，格式为yyyyMMdd
         String dateStr = LocalDate.now().format(DATE_FORMATTER);        
         
-        // 获取项目根目录
-        Path projectRoot = Paths.get(System.getProperty("user.dir")).getParent();
-        if (projectRoot == null) {
-            // 如果获取不到父目录，使用当前目录
-            projectRoot = Paths.get(System.getProperty("user.dir"));
-        }
+        Path projectRoot = Paths.get(projectRootDir);
         
-        // 创建临时文件路径：项目根路径的scripts/tmp/yyyyMMdd/planId/scriptId.py
         Path tempDir = projectRoot.resolve(nodeConfig.getTempScriptDirectory()).resolve(dateStr);
         if (planId != null) {
             tempDir = tempDir.resolve(String.valueOf(planId));
         }
-        Files.createDirectories(tempDir); // 确保目录存在        
+        Files.createDirectories(tempDir);        
         
-        // 构建临时文件路径：脚本id.py
         String fileName = scriptId + ".py";
         Path tempFilePath = tempDir.resolve(fileName);        
         
-        // 写入脚本内容
         Files.write(tempFilePath, scriptContent.getBytes());
         logger.info("Saved script to temporary file: {}", tempFilePath.toAbsolutePath().toString());
         return tempFilePath;

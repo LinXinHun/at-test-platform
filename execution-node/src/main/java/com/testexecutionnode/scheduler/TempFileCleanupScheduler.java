@@ -4,6 +4,7 @@ import com.testexecutionnode.config.NodeConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -26,18 +27,15 @@ public class TempFileCleanupScheduler {
     @Autowired
     private NodeConfig nodeConfig;
 
+    @Value("${project.root.dir}")
+    private String projectRootDir;
+
     /**
      * 初始化临时目录
      */
     public void initTempDirectory() {
         try {
-            // 获取项目根目录（当在execution-node目录运行时，父目录就是项目根目录）
-            Path projectRoot = Paths.get(System.getProperty("user.dir")).getParent();
-            if (projectRoot == null) {
-                logger.error("Failed to get project root directory");
-                return;
-            }
-            
+            Path projectRoot = Paths.get(projectRootDir);
             Path tempDir = projectRoot.resolve(nodeConfig.getTempScriptDirectory());
             if (!Files.exists(tempDir)) {
                 Files.createDirectories(tempDir);
@@ -59,20 +57,12 @@ public class TempFileCleanupScheduler {
      * @throws IOException IO异常
      */
     public Path getTempFilePath(String prefix, String suffix) throws IOException {
-        // 确保临时目录存在
         initTempDirectory();
         
-        // 获取当前日期，格式化为yyyyMMdd
         String currentDate = LocalDate.now().format(DATE_FORMATTER);
         
-        // 获取项目根目录（当在execution-node目录运行时，父目录就是项目根目录）
-        Path projectRoot = Paths.get(System.getProperty("user.dir")).getParent();
-        if (projectRoot == null) {
-            // 如果获取不到父目录，使用当前目录
-            projectRoot = Paths.get(System.getProperty("user.dir"));
-        }
+        Path projectRoot = Paths.get(projectRootDir);
         
-        // 在项目根目录下创建日期子目录
         Path tempDir = projectRoot.resolve(nodeConfig.getTempScriptDirectory());
         Path dateDir = tempDir.resolve(currentDate);
         if (!Files.exists(dateDir)) {
@@ -80,7 +70,6 @@ public class TempFileCleanupScheduler {
             logger.info("Created date directory: {}", dateDir.toAbsolutePath());
         }
         
-        // 在日期子目录中创建临时文件
         File tempFile = File.createTempFile(prefix, suffix, dateDir.toFile());
         logger.info("Created temporary file: {}", tempFile.getAbsolutePath());
         return tempFile.toPath();
@@ -89,19 +78,17 @@ public class TempFileCleanupScheduler {
     /**
      * 定时任务：每天凌晨1点清理一次当天往前的所有日期文件夹
      */
-    @Scheduled(cron = "0 0 1 * * ?") // 每天凌晨1点执行一次
+    @Scheduled(cron = "0 0 1 * * ?")
     public void cleanupExpiredTempFiles() {
         logger.info("Starting cleanup of expired temporary directories");
         try {
-            // 获取项目根目录
-            Path projectRoot = Paths.get(System.getProperty("user.dir")).getParent();
+            Path projectRoot = Paths.get(projectRootDir);
             Path tempDir = projectRoot.resolve(nodeConfig.getTempScriptDirectory());
             if (!Files.exists(tempDir)) {
                 logger.info("Temporary directory does not exist, skipping cleanup");
                 return;
             }
 
-            // 获取当前日期
             LocalDate currentDate = LocalDate.now();
             int deletedDirsCount = 0;
             int deletedFilesCount = 0;
@@ -111,12 +98,9 @@ public class TempFileCleanupScheduler {
                     if (Files.isDirectory(dir)) {
                         String dirName = dir.getFileName().toString();
                         try {
-                            // 解析日期目录名
                             LocalDate dirDate = LocalDate.parse(dirName, DATE_FORMATTER);
                             
-                            // 如果目录日期在当前日期之前，则删除该目录及其所有内容
                             if (dirDate.isBefore(currentDate)) {
-                                // 计算删除的文件数量
                                 try (DirectoryStream<Path> fileStream = Files.newDirectoryStream(dir)) {
                                     for (Path file : fileStream) {
                                         Files.deleteIfExists(file);
@@ -124,13 +108,11 @@ public class TempFileCleanupScheduler {
                                     }
                                 }
                                 
-                                // 删除目录
                                 Files.deleteIfExists(dir);
                                 deletedDirsCount++;
                                 logger.info("Deleted expired date directory: {}", dir.toAbsolutePath());
                             }
                         } catch (Exception e) {
-                            // 如果目录名不是有效日期格式，跳过该目录
                             logger.warn("Skipping directory with invalid date format: {}", dirName);
                         }
                     }
@@ -147,12 +129,11 @@ public class TempFileCleanupScheduler {
     /**
      * 定时任务：每小时清理一次过期的临时文件（超过24小时的文件）
      */
-    @Scheduled(fixedRate = 3600000) // 每小时执行一次
+    @Scheduled(fixedRate = 3600000)
     public void cleanupExpiredTempFilesHourly() {
         logger.info("Starting cleanup of expired temporary files");
         try {
-            // 获取项目根目录
-            Path projectRoot = Paths.get(System.getProperty("user.dir")).getParent();
+            Path projectRoot = Paths.get(projectRootDir);
             Path tempDir = projectRoot.resolve(nodeConfig.getTempScriptDirectory());
             if (!Files.exists(tempDir)) {
                 logger.info("Temporary directory does not exist, skipping cleanup");

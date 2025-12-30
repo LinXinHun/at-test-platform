@@ -3,6 +3,7 @@ package com.testexecutionplatform.controller;
 import com.testexecutionplatform.model.TestExecutionResult;
 import com.testexecutionplatform.service.TestExecutionResultService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -20,6 +21,9 @@ public class TestExecutionResultController {
     
     @Autowired
     private TestExecutionResultService testExecutionResultService;
+
+    @Value("${project.root.dir}")
+    private String projectRootDir;
     
     // 根据脚本ID获取执行记录
     @GetMapping("/script/{scriptId}")
@@ -55,7 +59,7 @@ public class TestExecutionResultController {
         }
         
         // 获取完整的日志文件路径
-        String fullLogPath = System.getProperty("user.dir") + File.separator + executionResult.getLogFilePath();
+        String fullLogPath = projectRootDir + File.separator + executionResult.getLogFilePath();
         File logFile = new File(fullLogPath);
         
         if (!logFile.exists()) {

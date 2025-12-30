@@ -3,6 +3,7 @@ package com.testexecutionplatform.controller;
 import com.testexecutionplatform.model.TestScript;
 import com.testexecutionplatform.service.TestScriptService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -28,6 +29,9 @@ public class TestScriptController {
 
     @Autowired
     private TestScriptService testScriptService;
+
+    @Value("${project.root.dir}")
+    private String projectRootDir;
 
     @GetMapping
     public ResponseEntity<Page<TestScript>> getAllTestScripts(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
@@ -114,8 +118,7 @@ public class TestScriptController {
     public ResponseEntity<Resource> downloadScriptFile(@RequestParam String filePath) {
         try {
             // 构建完整的文件路径
-            String projectRoot = System.getProperty("user.dir");
-            String scriptsDir = projectRoot + File.separator + "scripts";
+            String scriptsDir = projectRootDir + File.separator + "scripts";
             
             // 安全检查：移除可能存在的scripts/前缀，避免路径重复
             if (filePath.startsWith("scripts/")) {

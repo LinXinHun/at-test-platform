@@ -7,6 +7,7 @@ import com.testexecutionplatform.repository.TestExecutionResultRepository;
 import com.testexecutionplatform.service.TestExecutionResultService;
 import com.testexecutionplatform.service.TestScriptService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.data.domain.Page;
@@ -52,6 +53,9 @@ public class TestScriptServiceImpl implements TestScriptService {
     @Autowired
     private ResourceLoader resourceLoader;
 
+    @Value("${project.root.dir}")
+    private String projectRootDir;
+
     private static final Logger logger = Logger.getLogger(TestScriptServiceImpl.class.getName());
     private static final String SCRIPTS_DIR = "scripts/";
 
@@ -79,8 +83,7 @@ public class TestScriptServiceImpl implements TestScriptService {
             Long scriptId = savedScript.getId();
             
             // 获取项目根目录
-            String projectRoot = System.getProperty("user.dir");
-            String scriptsPath = projectRoot + File.separator + SCRIPTS_DIR;
+            String scriptsPath = projectRootDir + File.separator + SCRIPTS_DIR;
             
             // 创建scripts目录（如果不存在）
             File scriptsDir = new File(scriptsPath);
@@ -133,8 +136,7 @@ public class TestScriptServiceImpl implements TestScriptService {
         if (existingScript != null) {
             try {
                 // 获取项目根目录
-                String projectRoot = System.getProperty("user.dir");
-                String scriptsPath = projectRoot + File.separator + SCRIPTS_DIR;
+                String scriptsPath = projectRootDir + File.separator + SCRIPTS_DIR;
                 
                 // 创建scripts目录（如果不存在）
                 File scriptsDir = new File(scriptsPath);
@@ -208,8 +210,7 @@ public class TestScriptServiceImpl implements TestScriptService {
                 String filePath = testScript.getFilePath();
                 if (filePath != null) {
                     // 获取项目根目录
-                    String projectRoot = System.getProperty("user.dir");
-                    String scriptsPath = projectRoot + File.separator + SCRIPTS_DIR;
+                    String scriptsPath = projectRootDir + File.separator + SCRIPTS_DIR;
                     
                     // 彻底处理路径：提取文件名，不管前面有什么路径
                     File fileObj = new File(filePath);
@@ -251,8 +252,7 @@ public class TestScriptServiceImpl implements TestScriptService {
             }
             
             // 构建完整的文件路径
-            String projectRoot = System.getProperty("user.dir");
-            String fullFilePath = projectRoot + File.separator + SCRIPTS_DIR + filePath;
+            String fullFilePath = projectRootDir + File.separator + SCRIPTS_DIR + filePath;
             File scriptFile = new File(fullFilePath);
             
             if (!scriptFile.exists()) {
@@ -369,8 +369,7 @@ public class TestScriptServiceImpl implements TestScriptService {
             
             // 创建并设置日志文件路径
             try {
-                String projectRoot = System.getProperty("user.dir");
-                String logsDir = projectRoot + File.separator + "logs" + File.separator + "simple" + File.separator + String.valueOf(id);
+                String logsDir = projectRootDir + File.separator + "logs" + File.separator + "simple" + File.separator + String.valueOf(id);
                 File logsDirectory = new File(logsDir);
                 if (!logsDirectory.exists()) {
                     logsDirectory.mkdirs();
@@ -398,7 +397,7 @@ public class TestScriptServiceImpl implements TestScriptService {
                 }
                 
                 // 设置日志文件路径（相对于项目根目录）
-                executionResult.setLogFilePath(logFilePath.substring(projectRoot.length() + 1));
+                executionResult.setLogFilePath(logFilePath.substring(projectRootDir.length() + 1));
             } catch (Exception e) {
                 e.printStackTrace();
             }
