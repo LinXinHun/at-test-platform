@@ -1,0 +1,23 @@
+        <div class="preview-content">
+          <div v-if="loadingPreview" class="loading">加载中...</div>
+          <div v-else>
+            <div class="preview-info">
+              <div class="info-item">
+                <span class="info-label">脚本名称：</span>
+                <span class="info-value">{{ previewScriptData.name }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">脚本类型：</span>
+                <span class="info-value">{{ previewScriptData.scriptType }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">描述：</span>
+                <span class="info-value">{{ previewScriptData.description }}</span>
+              </div>
+            </div>
+            <div class="script-content">
+              <h4>脚本内容</h4>
+              <pre>{{ previewScriptContent }}</pre>
+            </div>
+          </div>
+        </div>
