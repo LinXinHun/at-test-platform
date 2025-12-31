@@ -51,23 +51,36 @@ public class TestExecutionService {
     private String projectRootDir;
 
     // 构建执行命令
-    private String buildCommand(String scriptType, String filePath) {
+    private String buildCommand(String scriptType, String filePath, String executionEndpointType) {
+        String command = "";
         switch (scriptType.toLowerCase()) {
             case "py":
             case "python":
-                return "python3 " + filePath;
+                if ("MiniApp".equals(executionEndpointType)) {
+                    // 对于MiniApp类型，使用pytest命令格式
+                    command = "python3 -m pytest " + filePath + " -vs";
+                } else {
+                    // 其他类型使用普通python命令
+                    command = "python3 " + filePath;
+                }
+                break;
             case "sh":
-                return "bash " + filePath;
+                command = "bash " + filePath;
+                break;
             case "js":
-                return "node " + filePath;
+                command = "node " + filePath;
+                break;
             case "java":
                 // 编译并运行Java文件
                 String className = filePath.substring(filePath.lastIndexOf('/') + 1, filePath.lastIndexOf('.'));
                 String classPath = filePath.substring(0, filePath.lastIndexOf('/'));
-                return "javac -cp " + classPath + " " + filePath + " && java -cp " + classPath + " " + className;
+                command = "javac -cp " + classPath + " " + filePath + " && java -cp " + classPath + " " + className;
+                break;
             default:
                 throw new IllegalArgumentException("Unsupported script type: " + scriptType);
         }
+        logger.info("Built command for {} type with endpoint {}: {}", scriptType, executionEndpointType, command);
+        return command;
     }
 
     // 下载文件并保存到临时目录
@@ -82,7 +95,7 @@ public class TestExecutionService {
         }
         Files.createDirectories(tempDir);        
         
-        String fileName = scriptId + ".py";
+        String fileName = "test_" + scriptId + ".py";
         Path tempFilePath = tempDir.resolve(fileName);        
         
         String platformUrl = nodeConfig.getPlatformServerUrl();
@@ -323,17 +336,18 @@ public class TestExecutionService {
             Map<String, Object> testPlan = (Map<String, Object>) testTask.get("testPlan");
             Long planId = testPlan != null ? ((Number) testPlan.get("id")).longValue() : null;
 
-            logger.info("Executing script: {} (ID: {}, Type: {})", scriptName, scriptId, scriptType);
+            logger.info("Executing script: {} (ID: {}, Type: {}, {})", scriptName, scriptId, scriptType, planId);
 
             // 保存脚本到临时文件
             tempFilePath = saveScriptToTempFile(scriptContent, scriptType, scriptId, planId);
 
-            // 执行脚本
-            String command = buildCommand(scriptType, tempFilePath.toAbsolutePath().toString());
+            // 执行脚本 - 任务执行暂时不支持MiniApp类型的特殊命令，使用默认命令
+            String command = buildCommand(scriptType, tempFilePath.toAbsolutePath().toString(), null);
             logger.info("Executing command: {}", command);
 
             ProcessBuilder processBuilder = new ProcessBuilder();
             processBuilder.command("bash", "-c", command);
+            logger.info("ProcessBuilder command: {}", processBuilder.command());
             Process process = processBuilder.start();
 
             // 读取输出
@@ -452,8 +466,12 @@ public class TestExecutionService {
                         logger.info("Saved script to temporary file: {}", tempFilePath.toAbsolutePath());
                     }
 
-                    // 执行脚本
-                    executionResult = executeScript(tempFilePath, scriptType, scriptId, executionId);
+                    // 获取执行端点类型
+            String executionEndpointType = (String) testPlan.get("executionEndpointType");
+            logger.info("Test plan execution endpoint type: {}", executionEndpointType);
+            
+            // 执行脚本
+            executionResult = executeScript(tempFilePath, scriptType, scriptId, executionId, executionEndpointType);
                     
                     // 更新执行日志
                     if (logId != null) {
@@ -529,7 +547,7 @@ public class TestExecutionService {
         }
         Files.createDirectories(tempDir);        
         
-        String fileName = scriptId + ".py";
+        String fileName = "test_" + scriptId + ".py";
         Path tempFilePath = tempDir.resolve(fileName);        
         
         Files.write(tempFilePath, scriptContent.getBytes());
@@ -545,7 +563,7 @@ public class TestExecutionService {
      * @param executionId 执行ID
      * @return 执行结果
      */
-    public Map<String, Object> executeScript(Path scriptPath, String scriptType, Long scriptId, Long executionId) {
+    public Map<String, Object> executeScript(Path scriptPath, String scriptType, Long scriptId, Long executionId, String executionEndpointType) {
         logger.info("Executing script: {} (Type: {})", scriptPath.getFileName(), scriptType);
         Map<String, Object> executionResult = new HashMap<>();
         long startTime = System.currentTimeMillis();
@@ -554,11 +572,19 @@ public class TestExecutionService {
 
         try {
             // 构建命令
-            String command = buildCommand(scriptType, scriptPath.toAbsolutePath().toString());
+            String command = buildCommand(scriptType, scriptPath.toAbsolutePath().toString(), executionEndpointType);
             logger.info("Executing command: {}", command);
 
+            // 设置工作目录为scripts目录
+            Path projectRoot = Paths.get(projectRootDir);
+            Path scriptsDir = projectRoot.resolve("scripts");
+            
             // 执行命令
-            Process process = Runtime.getRuntime().exec(command);
+            ProcessBuilder processBuilder = new ProcessBuilder();
+            processBuilder.command("bash", "-c", command);
+            processBuilder.directory(scriptsDir.toFile());
+            logger.info("ProcessBuilder command: {} with directory: {}", processBuilder.command(), scriptsDir.toAbsolutePath());
+            Process process = processBuilder.start();
 
             // 读取输出
             StringBuilder output = new StringBuilder();

@@ -3,6 +3,7 @@
     <h2>测试计划管理</h2>
     <div class="action-bar">
       <button @click="handleAddPlan">添加测试计划</button>
+      <button @click="handleRefreshPlans" class="refresh-button">刷新</button>
     </div>
     
     <div class="plan-list">
@@ -11,6 +12,7 @@
           <tr>
             <th>计划名称</th>
             <th>描述</th>
+            <th>执行端点类型</th>
             <th>测试脚本数量</th>
             <th>创建时间</th>
             <th>更新时间</th>
@@ -22,6 +24,7 @@
           <tr v-for="plan in testPlans" :key="plan.id">
             <td>{{ plan.name }}</td>
             <td>{{ plan.description }}</td>
+            <td>{{ plan.executionEndpointType }}</td>
             <td>{{ plan.scripts.length }}</td>
             <td>{{ formatDate(plan.createdAt) }}</td>
             <td>{{ formatDate(plan.updatedAt) }}</td>
@@ -30,7 +33,7 @@
                 {{ plan.lastExecutionStatus || '未执行' }}
               </span>
             </td>
-            <td>
+            <td class="action-buttons">
               <button @click="handleEditPlan(plan)">编辑</button>
               <button @click="handleDeletePlan(plan.id)">删除</button>
               <button @click="handleExecutePlan(plan)">执行</button>
@@ -79,6 +82,16 @@
             </div>
             
             <div class="form-group">
+              <label for="executionEndpointType">执行端点类型</label>
+              <select id="executionEndpointType" v-model="editingPlan.executionEndpointType" required>
+                <option value="MiniApp">MiniApp</option>
+                <option value="Web">Web</option>
+                <option value="App">App</option>
+                <option value="Api">Api</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
               <label>选择测试脚本 <span class="selected-count">(已选择 {{ selectedScripts.length }} 个)</span></label>
               <div class="checkbox-group">
                 <label v-for="script in testScripts" :key="script.id" class="checkbox-item">
@@ -113,7 +126,7 @@
         </div>
       </div>
     </div>
-
+    
     <!-- Execute Dialog -->
     <div v-if="executeDialogVisible" class="modal">
       <div class="modal-content execute-modal">
@@ -127,10 +140,10 @@
             <label for="executionNode">选择执行节点</label>
             <select id="executionNode" v-model="selectedNodeId" required class="node-select">
                 <option value="" disabled>请选择执行节点</option>
-                <option v-for="node in executionNodes" :key="node.id" :value="node.id" 
+                <option v-for="node in executionNodes.filter(n => n.endpointType === currentPlan?.executionEndpointType)" :key="node.id" :value="node.id" 
                         :class="['node-option', node.status]"
                         :disabled="node.status !== 'ONLINE'">
-                  {{ node.name }} - {{ node.host }}:{{ node.port }} ({{ node.status === 'ONLINE' ? '在线' : '离线' }})
+                  {{ node.name }} - {{ node.host }}:{{ node.port }} ({{ node.status === 'ONLINE' ? '在线' : '离线' }} - {{ node.endpointType }})
                 </option>
               </select>
           </div>
@@ -174,7 +187,7 @@
                     </span>
                   </td>
                   <td>{{ execution.successScripts }}/{{ execution.failedScripts }}/{{ execution.totalScripts }}</td>
-                  <td>{{ formatDuration(execution.startTime, execution.endTime) }}</td>
+                  <td>{{ formatDuration(execution.createdAt, execution.endTime) }}</td>
                   <td>
                     <button @click="handleViewExecutionLogs(execution)">查看日志</button>
                     <button @click="handleGenerateReport(execution)" :disabled="execution.status !== 'SUCCESS' && execution.status !== 'FAILURE'">
@@ -292,6 +305,7 @@ interface ExecutionNode {
   host: string;
   port: number;
   status: string;
+  endpointType: string;
 }
 
 interface TestPlan {
@@ -299,6 +313,7 @@ interface TestPlan {
   name: string;
   description: string;
   scripts: TestScript[];
+  executionEndpointType: string;
   createdAt: string;
   updatedAt: string;
   lastExecutionStatus?: string;
@@ -365,6 +380,7 @@ const editingPlan = ref<TestPlan>({
   name: '',
   description: '',
   scripts: [],
+  executionEndpointType: 'Web',
   createdAt: '',
   updatedAt: ''
 });
@@ -380,6 +396,11 @@ onMounted(() => {
   fetchTestScripts();
   fetchExecutionNodes();
 });
+
+const handleRefreshPlans = async () => {
+  await fetchTestPlans();
+  await fetchExecutionNodes();
+};
 
 const fetchTestPlans = async () => {
   try {
@@ -452,12 +473,13 @@ const handleAddPlan = () => {
     name: '',
     description: '',
     scripts: [],
+    executionEndpointType: 'Web',
     createdAt: '',
     updatedAt: ''
   };
   selectedScripts.value = [];
   dialogVisible.value = true;
-};
+}
 
 const handleEditPlan = (plan: TestPlan) => {
   editingPlan.value = { ...plan };
@@ -498,8 +520,11 @@ const handleExecutePlan = (plan: TestPlan) => {
   currentPlan.value = plan;
   executeDialogVisible.value = true;
   
-  // 默认选择第一个在线的执行节点
-  const onlineNode = executionNodes.value.find(node => node.status === 'ONLINE');
+  // 重置选择的节点
+  selectedNodeId.value = null;
+  
+  // 默认选择第一个匹配类型且在线的执行节点
+  const onlineNode = executionNodes.value.find(node => node.status === 'ONLINE' && node.endpointType === plan.executionEndpointType);
   if (onlineNode) {
     selectedNodeId.value = onlineNode.id;
   }
@@ -663,6 +688,47 @@ const handleGenerateReport = async (execution: TestPlanExecution) => {
 
 .action-bar {
   margin-bottom: 1rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.refresh-button {
+  background-color: #409eff;
+  color: white;
+  border: 1px solid #409eff;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.refresh-button:hover {
+  background-color: #66b1ff;
+  border-color: #66b1ff;
+  transform: rotate(15deg);
+}
+
+.refresh-button:active {
+  transform: rotate(360deg);
+  transition: transform 0.2s ease;
+}
+
+/* 简单的刷新图标效果 */
+.refresh-button::before {
+  content: '↻';
+  font-size: 16px;
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.refresh-button:hover::before {
+  transform: rotate(360deg);
 }
 
 .plan-list {
@@ -697,12 +763,41 @@ const handleGenerateReport = async (execution: TestPlanExecution) => {
   z-index: 1000;
 }
 
+.action-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.action-buttons button {
+  margin: 0;
+  box-sizing: border-box;
+  white-space: nowrap; /* 禁止文字换行 */
+  text-align: center; /* 文字居中 */
+  padding: 8px 4px; /* 适当的内边距 */
+}
+
+#executionEndpointType {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+  height: 35px;
+  box-sizing: border-box;
+}
+
+#executionEndpointType option {
+  padding: 8px;
+}
+
 .modal-content {
   background-color: white;
-  padding: 1rem;
+  padding: 1.5rem;
   border-radius: 8px;
   width: 90%;
-  max-width: 600px;
+  max-width: 800px;
   max-height: 80vh;
   overflow-y: auto;
   display: flex;
@@ -755,8 +850,224 @@ const handleGenerateReport = async (execution: TestPlanExecution) => {
 .form-group label {
   display: block;
   margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #495057;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.3s;
+  height: 35px;
+  box-sizing: border-box;
+}
+
+/* 特殊处理textarea，不限制高度 */
+.form-group textarea {
+  height: auto;
+  min-height: 80px;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Script Pagination Styles */
+.script-pagination {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.script-pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.script-pagination button {
+  background-color: white;
+  color: #409eff;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.script-pagination button:hover:not(:disabled) {
+  background-color: #ecf5ff;
+  border-color: #c6e2ff;
+  color: #409eff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.script-pagination button:disabled {
+  background-color: #f5f7fa;
+  color: #c0c4cc;
+  border-color: #e4e7ed;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.script-pagination span {
+  color: #606266;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.script-pagination .page-size {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap; /* 确保文字不换行 */
+}
+
+.script-pagination .page-size label {
+  color: #606266;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap; /* 确保文字不换行 */
+}
+
+.script-pagination select {
+  background-color: white !important;
+  color: #606266 !important;
+  border: 1px solid #dcdfe6 !important;
+  border-radius: 4px !important;
+  padding: 0.5rem 0.75rem !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  height: 35px !important;
+  box-sizing: border-box !important;
+  min-height: 35px !important;
+  max-height: 35px !important;
+}
+
+.script-pagination select:hover {
+  border-color: #c6e2ff;
+}
+
+.script-pagination select:focus {
+  outline: none;
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+}
+
+/* Checkbox Group Styles */
+.checkbox-group {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  background-color: #fafafa;
+}
+
+.checkbox-item {
+  display: block;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background-color: white;
+  border-radius: 4px;
+  border: 1px solid #e4e7ed;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.checkbox-item:hover {
+  border-color: #409eff;
+  background-color: #ecf5ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.checkbox-item input[type="checkbox"] {
+  margin-right: 0.5rem;
+  accent-color: #409eff;
+  cursor: pointer;
+}
+
+.selected-count {
+  color: #409eff;
+  font-weight: 500;
+  margin-left: 0.5rem;
+}
+
+/* Modal Header Styles */
+.modal-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #333;
+}
+
+/* Modal Footer Styles */
+.modal-footer {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.modal-footer button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.modal-footer button[type="submit"] {
+  background-color: #409eff;
+  color: white;
+}
+
+.modal-footer button[type="submit"]:hover {
+  background-color: #66b1ff;
+}
+
+.modal-footer button[type="button"] {
+  background-color: #f5f7fa;
+  color: #606266;
+}
+
+.modal-footer button[type="button"]:hover {
+  background-color: #e4e7ed;
 }
 
 .form-group input[type="text"],

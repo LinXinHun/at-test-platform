@@ -39,6 +39,9 @@ public class TestPlan {
     @JoinColumn(name = "last_execution_node_id")
     private ExecutionNode lastExecutionNode;
     
+    @Column(name = "execution_endpoint_type", nullable = false)
+    private String executionEndpointType; // MiniApp, Web, App, Api
+    
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
     

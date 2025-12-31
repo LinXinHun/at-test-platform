@@ -43,6 +43,9 @@ public class ExecutionNode {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
     
+    @Column(name = "endpoint_type", nullable = false)
+    private String endpointType; // MiniApp, Web, App, Api
+    
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

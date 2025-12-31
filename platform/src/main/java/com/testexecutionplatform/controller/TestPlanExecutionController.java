@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import org.springframework.beans.factory.annotation.Value;
 
 @RestController
 @RequestMapping("/api/plan-executions")
@@ -37,6 +38,9 @@ public class TestPlanExecutionController {
     
     @Autowired
     private TestPlanExecutionService testPlanExecutionService;
+
+    @Value("${project.root.dir}")
+    private String projectRootDir;
     
     /**
      * 执行测试计划
@@ -191,12 +195,12 @@ public class TestPlanExecutionController {
         try {
             // 确保日志目录存在
             String logDir = "logs/" + planId + "/" + executionId;
-            Path logDirPath = Paths.get(logDir);
+            Path logDirPath = Paths.get(projectRootDir, logDir);
             Files.createDirectories(logDirPath);
             
             // 保存日志内容到文件
             String logFilePath = logDir + "/" + scriptId + ".log";
-            Files.write(Paths.get(logFilePath), logContent.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.write(Paths.get(projectRootDir,logFilePath), logContent.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             
             log.info("Log content saved successfully for plan {}, script {}, execution {}", planId, scriptId, executionId);
             return ResponseEntity.ok("Log content uploaded successfully");
@@ -216,7 +220,7 @@ public class TestPlanExecutionController {
         try {
             // 构建日志文件路径
             String logFilePath = "logs/" + planId + "/" + executionId + "/" + scriptId + ".log";
-            Path path = Paths.get(logFilePath);
+            Path path = Paths.get(projectRootDir, logFilePath);
             Resource resource = new UrlResource(path.toUri());
             
             if (resource.exists() || resource.isReadable()) {

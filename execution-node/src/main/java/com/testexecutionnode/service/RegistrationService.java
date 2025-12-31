@@ -49,6 +49,7 @@ public class RegistrationService {
             nodeInfo.put("osInfo", System.getProperty("os.name") + " " + System.getProperty("os.version"));
             nodeInfo.put("cpuInfo", Runtime.getRuntime().availableProcessors() + " cores");
             nodeInfo.put("memoryInfo", (Runtime.getRuntime().maxMemory() / 1024 / 1024) + " MB");
+            nodeInfo.put("endpointType", nodeConfig.getEndpointType());
 
             String url = platformServerUrl + "/api/execution-nodes/register";
             logger.info("Registering to platform at {} with nodeId: {}", url, nodeId);

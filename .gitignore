@@ -92,4 +92,7 @@ coverage/
 
 # Scripts tmp
 scripts/
-log/
+!scripts/conftest.py
+!scripts/minium.config.py
+logs/
+temp-scripts/*

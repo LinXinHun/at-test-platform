@@ -76,14 +76,31 @@ public class TempFileCleanupScheduler {
     }
 
     /**
+     * 获取临时目录路径
+     * @return 临时目录路径
+     */
+    private Path getTempDirectory() {
+        String tempDirPath = nodeConfig.getTempScriptDirectory();
+        Path projectRoot = Paths.get(projectRootDir);
+        
+        // 检查是否为绝对路径
+        if (tempDirPath.startsWith("/")) {
+            // 如果是绝对路径，直接使用
+            return Paths.get(tempDirPath);
+        } else {
+            // 如果是相对路径，使用项目根目录作为前缀
+            return projectRoot.resolve(tempDirPath);
+        }
+    }
+
+    /**
      * 定时任务：每天凌晨1点清理一次当天往前的所有日期文件夹
      */
     @Scheduled(cron = "0 0 1 * * ?")
     public void cleanupExpiredTempFiles() {
         logger.info("Starting cleanup of expired temporary directories");
         try {
-            Path projectRoot = Paths.get(projectRootDir);
-            Path tempDir = projectRoot.resolve(nodeConfig.getTempScriptDirectory());
+            Path tempDir = getTempDirectory();
             if (!Files.exists(tempDir)) {
                 logger.info("Temporary directory does not exist, skipping cleanup");
                 return;
@@ -133,8 +150,7 @@ public class TempFileCleanupScheduler {
     public void cleanupExpiredTempFilesHourly() {
         logger.info("Starting cleanup of expired temporary files");
         try {
-            Path projectRoot = Paths.get(projectRootDir);
-            Path tempDir = projectRoot.resolve(nodeConfig.getTempScriptDirectory());
+            Path tempDir = getTempDirectory();
             if (!Files.exists(tempDir)) {
                 logger.info("Temporary directory does not exist, skipping cleanup");
                 return;

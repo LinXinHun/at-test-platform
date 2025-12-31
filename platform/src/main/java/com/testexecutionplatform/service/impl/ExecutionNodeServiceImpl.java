@@ -44,6 +44,7 @@ public class ExecutionNodeServiceImpl implements ExecutionNodeService {
             updatedNode.setOsInfo(node.getOsInfo());
             updatedNode.setCpuInfo(node.getCpuInfo());
             updatedNode.setMemoryInfo(node.getMemoryInfo());
+            updatedNode.setEndpointType(node.getEndpointType());
             updatedNode.setLastHeartbeat(LocalDateTime.now());
             return executionNodeRepository.save(updatedNode);
         } else {

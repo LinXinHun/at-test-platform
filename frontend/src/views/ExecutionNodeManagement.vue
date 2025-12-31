@@ -10,6 +10,7 @@
         <div class="node-details">
           <p><strong>节点ID:</strong> {{ node.nodeId }}</p>
           <p><strong>主机:</strong> {{ node.host }}:{{ node.port }}</p>
+          <p><strong>端点类型:</strong> {{ node.endpointType }}</p>
           <p><strong>操作系统:</strong> {{ node.osInfo }}</p>
           <p><strong>CPU信息:</strong> {{ node.cpuInfo }}</p>
           <p><strong>内存信息:</strong> {{ node.memoryInfo }}</p>
@@ -35,6 +36,7 @@ interface ExecutionNode {
   osInfo: string;
   cpuInfo: string;
   memoryInfo: string;
+  endpointType: string;
   lastHeartbeat: string;
   createdAt: string;
   updatedAt: string;

@@ -26,6 +26,9 @@ public class NodeConfig {
     
     @Value("${temp.script.directory}")
     private String tempScriptDirectory;
+    
+    @Value("${node.endpoint-type:Web}")
+    private String endpointType;
 
     public String getPlatformServerUrl() {
         return platformServerUrl;
@@ -53,5 +56,9 @@ public class NodeConfig {
     
     public String getTempScriptDirectory() {
         return tempScriptDirectory;
+    }
+    
+    public String getEndpointType() {
+        return endpointType;
     }
 }
