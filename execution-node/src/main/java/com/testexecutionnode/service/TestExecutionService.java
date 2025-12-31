@@ -50,18 +50,39 @@ public class TestExecutionService {
     @Value("${project.root.dir}")
     private String projectRootDir;
 
+    // 根据操作系统类型获取命令行解释器和参数
+    private List<String> getCommandInterpreter() {
+        String osName = System.getProperty("os.name").toLowerCase();
+        List<String> interpreter = new ArrayList<>();
+        
+        if (osName.contains("win")) {
+            // Windows系统使用cmd.exe
+            interpreter.add("cmd.exe");
+            interpreter.add("/c");
+        } else {
+            // Linux/Mac系统使用bash
+            interpreter.add("bash");
+            interpreter.add("-c");
+        }
+        
+        logger.info("Using command interpreter for OS {}: {}", osName, interpreter);
+        return interpreter;
+    }
+    
     // 构建执行命令
     private String buildCommand(String scriptType, String filePath, String executionEndpointType) {
         String command = "";
         switch (scriptType.toLowerCase()) {
             case "py":
             case "python":
+                // 根据操作系统类型选择Python命令
+                String pythonCmd = System.getProperty("os.name").toLowerCase().contains("win") ? "python" : "python3";
                 if ("MiniApp".equals(executionEndpointType)) {
                     // 对于MiniApp类型，使用pytest命令格式
-                    command = "python3 -m pytest " + filePath + " -vs";
+                    command = pythonCmd + " -m pytest " + filePath + " -vs";
                 } else {
                     // 其他类型使用普通python命令
-                    command = "python3 " + filePath;
+                    command = pythonCmd + " " + filePath;
                 }
                 break;
             case "sh":
@@ -346,7 +367,10 @@ public class TestExecutionService {
             logger.info("Executing command: {}", command);
 
             ProcessBuilder processBuilder = new ProcessBuilder();
-            processBuilder.command("bash", "-c", command);
+            List<String> interpreter = getCommandInterpreter();
+            List<String> fullCommand = new ArrayList<>(interpreter);
+            fullCommand.add(command);
+            processBuilder.command(fullCommand);
             logger.info("ProcessBuilder command: {}", processBuilder.command());
             Process process = processBuilder.start();
 
@@ -581,7 +605,10 @@ public class TestExecutionService {
             
             // 执行命令
             ProcessBuilder processBuilder = new ProcessBuilder();
-            processBuilder.command("bash", "-c", command);
+            List<String> interpreter = getCommandInterpreter();
+            List<String> fullCommand = new ArrayList<>(interpreter);
+            fullCommand.add(command);
+            processBuilder.command(fullCommand);
             processBuilder.directory(scriptsDir.toFile());
             logger.info("ProcessBuilder command: {} with directory: {}", processBuilder.command(), scriptsDir.toAbsolutePath());
             Process process = processBuilder.start();
